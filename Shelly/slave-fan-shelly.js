@@ -100,8 +100,13 @@ function clearMaxRunTimer() {
 
 // -----------------------------------------------------
 // Start the maximum runtime timer
-// If this timer expires, the fan is turned OFF and
-// cannot restart until the master goes OFF once.
+//
+// If the timer expires while the master is still ON,
+// the fan is turned OFF and blocked from restarting
+// until the master goes OFF once.
+//
+// If the timer expires while the master is already OFF,
+// the fan is simply turned OFF without setting the block.
 // -----------------------------------------------------
 function startMaxRunTimer() {
   clearMaxRunTimer();
@@ -109,11 +114,16 @@ function startMaxRunTimer() {
   maxRunTimer = Timer.set(MAX_RUN_MS, false, function () {
     maxRunTimer = null;
 
-    print("Maximum runtime reached -> fan OFF until master goes OFF");
-    maxRuntimeReached = true;
-
     clearOnTimer();
     clearOffTimer();
+
+    if (masterIsOn) {
+      print("Maximum runtime reached while master is ON -> fan OFF until master goes OFF");
+      maxRuntimeReached = true;
+    } else {
+      print("Maximum runtime reached during run-on -> fan OFF");
+      maxRuntimeReached = false;
+    }
 
     if (fanIsOn()) {
       setFan(false);
@@ -219,6 +229,9 @@ function masterEvent(isOn) {
   // If the fan is still running, start run-on timer
   if (fanIsOn()) {
     startOffDelay();
+  } else {
+    clearOffTimer();
+    clearMaxRunTimer();
   }
 
   return true;
